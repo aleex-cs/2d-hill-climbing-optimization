@@ -34,32 +34,30 @@ def matrix(print_option, N, p, seed):
     x_values = np.linspace(a, b, N)
     y_values = np.linspace(c, d, N)
     
-    # Create N x N matrix
-    mat = np.zeros((N, N))
+    # Initialize the matrix with -Infinity
+    t0_i = time.time()
+    mat = np.full((N, N), -np.inf)
+    t1_i = time.time()
 
+    # Original f2 function
     def f2(x, y):
         r = 0
         if x != 0 and y != 0:
             r = (x + y) / 2 + (8 * x * x * y * y * math.exp(0 - math.sqrt(x * x + y * y / 4))) / math.sqrt(x * x + y * y / 4) + math.sin((x + y) / 10000)
         return r
+        
+    # Function to calculate value only if it hasn't been calculated before
+    def calculate_if_needed(i, j):
+        if mat[i, j] == -np.inf:  # Only calculate if -Infinity
+            x = x_values[i]
+            y = y_values[j]
+            mat[i, j] = f2(x + y * 0.99, y)  # Calculate and assign
+        return mat[i, j]  # Return the calculated or existing value
 
-    t0_matrix = time.time()
-    # Fill the matrix with values from the new function
-    for i in range(N):
-        for j in range(N):
-            x = x_values[j]  # j-th x coordinate
-            y = y_values[i]  # i-th y coordinate
-            # New function to fill the matrix
-            mat[i, j] = f2(x + y * 0.99, y)
-    t1_matrix = time.time()
-
-    # Transpose the matrix
-    mat = mat.T
-    
-    # Function to perform Hill Climbing algorithm
+    # Function to perform the Hill Climbing algorithm
     def hill_climbing(x_ini, y_ini):
         current_x, current_y = x_ini, y_ini
-        max_value = mat[current_x, current_y]
+        max_value = calculate_if_needed(current_x, current_y)  # Use the modified function
         max_position = (current_x, current_y)
         
         points_traversed = []
@@ -69,13 +67,13 @@ def matrix(print_option, N, p, seed):
             neighbors = {}
 
             if current_x > 0:  # Up
-                neighbors[(current_x - 1, current_y)] = mat[current_x - 1, current_y]
+                neighbors[(current_x - 1, current_y)] = calculate_if_needed(current_x - 1, current_y)
             if current_x < N - 1:  # Down
-                neighbors[(current_x + 1, current_y)] = mat[current_x + 1, current_y]
+                neighbors[(current_x + 1, current_y)] = calculate_if_needed(current_x + 1, current_y)
             if current_y > 0:  # Left
-                neighbors[(current_x, current_y - 1)] = mat[current_x, current_y - 1]
+                neighbors[(current_x, current_y - 1)] = calculate_if_needed(current_x, current_y - 1)
             if current_y < N - 1:  # Right
-                neighbors[(current_x, current_y + 1)] = mat[current_x, current_y + 1]
+                neighbors[(current_x, current_y + 1)] = calculate_if_needed(current_x, current_y + 1)
 
             new_max_value = max(neighbors.values(), default=max_value)
             if max_value >= new_max_value:
@@ -95,13 +93,13 @@ def matrix(print_option, N, p, seed):
     all_starts = []
     all_max_positions = []
     all_paths = []
-    global_max_value = float('-inf')  # Initialize global max as very low
+    global_max_value = float('-inf')  # Initialize global maximum as very low
     global_max_position = None
     total_points_traversed = 0  # Counter for total points traversed
 
     t0_hc = time.time()
     for _ in range(p):
-        # Generate random initial point (choosing an index in the matrix)
+        # Generate random initial point (choose an index in the matrix)
         x_ini = math.floor(lcg.next() * N)
         y_ini = math.floor(lcg.next() * N)
         
@@ -113,7 +111,7 @@ def matrix(print_option, N, p, seed):
         all_max_positions.append(max_position)
         all_paths.append(points_traversed)
 
-        # Update the global maximum value
+        # Update the global maximum
         if max_value > global_max_value:
             global_max_value = max_value
             global_max_position = max_position
@@ -127,33 +125,21 @@ def matrix(print_option, N, p, seed):
 
     t1_hc = time.time()
 
-    t0_bs = time.time()
-    maxR = -999999
-    posR = []
-    for i in range(N):
-        for j in range(N):
-            if mat[i, j] > maxR:
-                maxR = mat[i, j]
-                posR = (i, j)
-    t1_bs = time.time()
-
-    T_i = t1_matrix - t0_matrix
-    T_r = t1_bs - t0_bs
+    T_i = t1_i - t0_i
     T_m = t1_hc - t0_hc
     
     print(f"T_i: {T_i:.6f}")
-    print(f"T_r: {T_r:.6f}")
     print(f"T_m: {T_m:.6f}")
-    print(f"Max_r:{posR} {maxR:.6f}")
-    print(f"Max_m:{max_position} {max_value:.6f}")
+    print(f"T_i+T_m: {T_i+T_m}")
+    print(f"Max_m: {global_max_position} {global_max_value:.6f}")
 
-    # Show the total number of points traversed
+    # Show total number of points traversed
     print(f"Total_steps: {total_points_traversed}")
 
     # Print the matrix without brackets or commas
     if print_option == 's':
         for row in mat:
-            print(' '.join(f'{val:.4f}' for val in row))
+            print(' '.join(f'{val:.4f}' if val != -np.inf else '-Inf' for val in row))
 
     # Create the heatmap
     plt.figure(figsize=(10, 8))
@@ -192,7 +178,7 @@ def matrix(print_option, N, p, seed):
 
 if __name__ == "__main__":
     if len(sys.argv) != 5:
-        print("Usage: ./hc_mem1 <print_option> <N> <p> <seed>")
+        print("Usage: ./Lab2_mc_mem1 <print_option> <N> <p> <seed>")
         sys.exit(1)
 
     print_option = sys.argv[1]

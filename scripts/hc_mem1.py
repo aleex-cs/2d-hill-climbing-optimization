@@ -37,6 +37,9 @@ def matrix(print_option, N, p, seed):
     # Create N x N matrix
     mat = np.zeros((N, N))
 
+    # Create a new NxN matrix to mark visited points
+    visited_matrix = np.zeros((N, N))  # Initialized to 0 (false)
+
     def f2(x, y):
         r = 0
         if x != 0 and y != 0:
@@ -56,13 +59,16 @@ def matrix(print_option, N, p, seed):
     # Transpose the matrix
     mat = mat.T
     
-    # Function to perform Hill Climbing algorithm
+    # Function to perform the Hill Climbing algorithm
     def hill_climbing(x_ini, y_ini):
         current_x, current_y = x_ini, y_ini
         max_value = mat[current_x, current_y]
         max_position = (current_x, current_y)
         
         points_traversed = []
+
+        # Mark the starting point in the visited matrix
+        visited_matrix[current_x, current_y] = 1
 
         while True:
             points_traversed.append((current_x, current_y, max_value))
@@ -78,14 +84,25 @@ def matrix(print_option, N, p, seed):
                 neighbors[(current_x, current_y + 1)] = mat[current_x, current_y + 1]
 
             new_max_value = max(neighbors.values(), default=max_value)
+
             if max_value >= new_max_value:
                 break
             
+            # Find the position with the new maximum value
             for pos, value in neighbors.items():
                 if value == new_max_value:
-                    current_x, current_y = pos
+                    new_x, new_y = pos
+
+                    # Check if the new point has already been visited
+                    if visited_matrix[new_x, new_y] == 1:
+                        # If already visited, stop the search
+                        return max_position, max_value, points_traversed
+                    
+                    # Update the new point and mark it as visited
+                    current_x, current_y = new_x, new_y
                     max_value = new_max_value
                     max_position = (current_x, current_y)
+                    visited_matrix[current_x, current_y] = 1  # Mark as visited
                     break
         
         return max_position, max_value, points_traversed
@@ -95,15 +112,20 @@ def matrix(print_option, N, p, seed):
     all_starts = []
     all_max_positions = []
     all_paths = []
-    global_max_value = float('-inf')  # Initialize global max as very low
+    global_max_value = float('-inf')  # Initialize global maximum as very low
     global_max_position = None
     total_points_traversed = 0  # Counter for total points traversed
 
     t0_hc = time.time()
     for _ in range(p):
-        # Generate random initial point (choosing an index in the matrix)
+        # Generate random initial point (choose an index in the matrix)
         x_ini = math.floor(lcg.next() * N)
         y_ini = math.floor(lcg.next() * N)
+
+        # Check if the starting point has already been visited
+        if visited_matrix[x_ini, y_ini] == 1:
+            # If already visited, skip this iteration
+            continue
         
         # Run Hill Climbing from the random starting point
         max_position, max_value, points_traversed = hill_climbing(x_ini, y_ini)
@@ -113,7 +135,7 @@ def matrix(print_option, N, p, seed):
         all_max_positions.append(max_position)
         all_paths.append(points_traversed)
 
-        # Update the global maximum value
+        # Update the global maximum
         if max_value > global_max_value:
             global_max_value = max_value
             global_max_position = max_position
@@ -127,30 +149,18 @@ def matrix(print_option, N, p, seed):
 
     t1_hc = time.time()
 
-    t0_bs = time.time()
-    maxR = -999999
-    posR = []
-    for i in range(N):
-        for j in range(N):
-            if mat[i, j] > maxR:
-                maxR = mat[i, j]
-                posR = (i, j)
-    t1_bs = time.time()
-
     T_i = t1_matrix - t0_matrix
-    T_r = t1_bs - t0_bs
     T_m = t1_hc - t0_hc
     
     print(f"T_i: {T_i:.6f}")
-    print(f"T_r: {T_r:.6f}")
     print(f"T_m: {T_m:.6f}")
-    print(f"Max_r:{posR} {maxR:.6f}")
-    print(f"Max_m:{max_position} {max_value:.6f}")
-
+    
+    # Print the best maximum found across all paths
+    print(f"Max_m: {global_max_position} {global_max_value:.6f}")
+    
     # Show the total number of points traversed
     print(f"Total_steps: {total_points_traversed}")
 
-    # Print the matrix without brackets or commas
     if print_option == 's':
         for row in mat:
             print(' '.join(f'{val:.4f}' for val in row))
@@ -192,7 +202,7 @@ def matrix(print_option, N, p, seed):
 
 if __name__ == "__main__":
     if len(sys.argv) != 5:
-        print("Usage: ./hc_mem1 <print_option> <N> <p> <seed>")
+        print("Usage: ./Lab2_mc_mem1 <print_option> <N> <p> <seed>")
         sys.exit(1)
 
     print_option = sys.argv[1]
